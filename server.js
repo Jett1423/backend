@@ -59,6 +59,7 @@ app.post("/create-checkout-session", async (req, res) => {
       redirectFailed,
       customerEmail,
       description,
+      lineItems, // Expecting lineItems array from the client request
     } = req.body;
 
     const response = await axios.post(
@@ -75,6 +76,14 @@ app.post("/create-checkout-session", async (req, res) => {
             customer_email: customerEmail,
             description,
             payment_method_types: ["gcash", "grab_pay", "paymaya"],
+            line_items: lineItems || [
+              {
+                name: description || "Default Item", // Example item name if not provided
+                amount: amount, // Amount in centavos, e.g., 10000 for PHP 100.00
+                currency: "PHP",
+                quantity: 1, // Adjust quantity as needed
+              },
+            ],
           },
         },
       },
