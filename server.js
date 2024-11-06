@@ -69,16 +69,30 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 // Webhook endpoint to receive payment status updates from PayMongo
+const crypto = require("crypto");
+
 app.post("/webhook", (req, res) => {
   const event = req.body;
 
-  const receivedSignature = req.headers["paymongo-signature"]; // Assuming PayMongo provides this in headers
+  const receivedSignature = req.headers["paymongo-signature"];
 
-  if (receivedSignature && receivedSignature !== WEBHOOK_SECRET_KEY) {
-    console.error("Invalid webhook signature");
-    return res.status(400).send("Invalid signature");
+  // Verify the signature if required by PayMongo (e.g., using HMAC)
+  if (receivedSignature) {
+    const computedSignature = crypto
+      .createHmac("sha256", WEBHOOK_SECRET_KEY)
+      .update(JSON.stringify(req.body))
+      .digest("hex");
+
+    if (computedSignature !== receivedSignature) {
+      console.error("Invalid webhook signature");
+      return res.status(400).send("Invalid signature");
+    }
+  } else {
+    console.error("No webhook signature provided");
+    return res.status(400).send("No signature");
   }
 
+  // Handle different event types
   if (event.data && event.data.attributes) {
     const eventType = event.type;
     const paymentData = event.data.attributes;
@@ -88,10 +102,10 @@ app.post("/webhook", (req, res) => {
       eventType === "checkout_session.payment.paid"
     ) {
       console.log("Payment was successful:", paymentData);
-      // Add your database update logic here
+      // Here, update your database or perform other actions to mark the payment as successful
     } else if (eventType === "payment.failed") {
       console.log("Payment failed:", paymentData);
-      // Add your database update logic here
+      // Handle failed payment accordingly (e.g., notify user, log the event)
     } else {
       console.warn("Unhandled event type:", eventType);
     }
@@ -99,6 +113,7 @@ app.post("/webhook", (req, res) => {
     console.error("Invalid webhook payload:", event);
   }
 
+  // Send a response to acknowledge receipt of the webhook
   res.status(200).send("Webhook received");
 });
 
