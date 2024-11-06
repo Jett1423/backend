@@ -76,6 +76,8 @@ app.post("/webhook", (req, res) => {
 
   const receivedSignature = req.headers["paymongo-signature"];
 
+  res.status(200).send("Webhook received");
+
   // Verify the signature if required by PayMongo (e.g., using HMAC)
   if (receivedSignature) {
     const computedSignature = crypto
@@ -112,9 +114,6 @@ app.post("/webhook", (req, res) => {
   } else {
     console.error("Invalid webhook payload:", event);
   }
-
-  // Send a response to acknowledge receipt of the webhook
-  res.status(200).send("Webhook received");
 });
 
 // Route to check the payment status by Payment Intent ID
