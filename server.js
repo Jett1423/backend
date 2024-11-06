@@ -10,76 +10,36 @@ app.use(bodyParser.json());
 const PAYMONGO_SECRET_KEY = "sk_test_sHTgy92wSWa3us8RUQhn5Gzw"; // Replace with your actual PayMongo secret key
 const WEBHOOK_SECRET_KEY = "whsk_6Dq8XsTonCDU9yeeyL8eGqBV"; // Use the secret key provided in the webhook response
 
-// Route to create a Payment Intent
-app.post("/create-payment-intent", async (req, res) => {
+// Route to create a Checkout Session using the Payment Intent
+app.post("/create-checkout-session", async (req, res) => {
   try {
-    const { amount, description } = req.body;
-
+    const {
+      amount,
+      description,
+      redirectSuccess,
+      redirectFailed,
+      customerEmail,
+    } = req.body;
     const response = await axios.post(
-      "https://api.paymongo.com/v1/payment_intents",
+      "https://api.paymongo.com/v1/checkout_sessions",
       {
         data: {
           attributes: {
             amount, // Amount in centavos (e.g., 10000 = PHP 100.00)
             currency: "PHP",
             description,
-            payment_method_allowed: ["gcash", "grab_pay", "paymaya"],
-            capture_type: "automatic",
-          },
-        },
-      },
-      {
-        headers: {
-          Authorization: `Basic ${Buffer.from(
-            PAYMONGO_SECRET_KEY + ":"
-          ).toString("base64")}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    res.json(response.data);
-  } catch (error) {
-    console.error(
-      "Error creating payment intent:",
-      error.response ? error.response.data : error.message
-    );
-    res
-      .status(500)
-      .json({ error: error.response ? error.response.data : error.message });
-  }
-});
-
-// Route to create a Checkout Session using the Payment Intent
-app.post("/create-checkout-session", async (req, res) => {
-  try {
-    const {
-      paymentIntentId,
-      redirectSuccess,
-      redirectFailed,
-      customerEmail,
-      description,
-      lineItems, // Expecting lineItems array from the client request
-    } = req.body;
-
-    const response = await axios.post(
-      "https://api.paymongo.com/v1/checkout_sessions",
-      {
-        data: {
-          attributes: {
-            payment_intent: paymentIntentId,
-            currency: "PHP",
             redirect: {
               success: redirectSuccess || "myapp://payment-success",
               failed: redirectFailed || "myapp://payment-failed",
             },
-            customer_email: customerEmail,
-            description,
-            payment_method_types: ["gcash", "grab_pay", "paymaya"],
-            line_items: lineItems || [
+            send_email_receipt: true, // Enable email receipt
+            customer_email: customerEmail, // Customer's email for receipt
+            show_description: true,
+            payment_method_types: ["gcash", "grab_pay", "paymaya"], // Payment methods
+            line_items: [
               {
-                name: description || "Default Item", // Example item name if not provided
-                amount: amount, // Amount in centavos, e.g., 10000 for PHP 100.00
+                name: description || "Default Item", // Description or default item name
+                amount: amount,
                 currency: "PHP",
                 quantity: 1, // Adjust quantity as needed
               },
@@ -96,11 +56,10 @@ app.post("/create-checkout-session", async (req, res) => {
         },
       }
     );
-
     res.json(response.data);
   } catch (error) {
     console.error(
-      "Error creating checkout session:",
+      "Error:",
       error.response ? error.response.data : error.message
     );
     res
